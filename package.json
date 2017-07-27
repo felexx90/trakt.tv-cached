@@ -1,0 +1,37 @@
+{
+  "name": "trakt.tv-cache",
+  "version": "0.0.0",
+  "description": "Caching plugin for trakt.tv",
+  "main": "./index.js",
+  "repository": {
+    "type": "git",
+    "url": "gitlab:MySidesTheyAreGone/trakt.tv-cache"
+  },
+  "keywords": [
+    "trakt.tv",
+    "cache",
+    "plugin"
+  ],
+  "dependencies": {
+    "moment": "2.18.1",
+    "ramda": "0.24.1"
+  },
+  "devDependencies": {
+    "trakt.tv": "5.1.0"
+  },
+  "author": {
+    "name": "MySidesTheyAreGone",
+    "email": "mysidestheyaregone@protonmail.com"
+  },
+  "license": "AGPL-3.0",
+  "bugs": {
+    "url": "https://gitlab.com/MySidesTheyAreGone/trakt.tv-cache/issues"
+  },
+  "homepage": "https://gitlab.com/MySidesTheyAreGone/trakt.tv-cache",
+  "maintainers": [
+    {
+      "name": "MySidesTheyAreGone",
+      "email": "mysidestheyaregone@openmailbox.org"
+    }
+  ]
+}

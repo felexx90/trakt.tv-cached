@@ -1,0 +1,19 @@
+logs
+*.log
+pids
+*.pid
+*.seed
+lib-cov
+coverage
+.grunt
+.lock-wscript
+build/Release
+node_modules
+docs/_build
+typings
+.vscode
+target
+
+# private test scripts
+*test.js
+
