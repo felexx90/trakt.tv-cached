@@ -1,15 +1,15 @@
 {
-  "name": "trakt.tv-cache",
+  "name": "trakt.tv-cached",
   "version": "0.0.0",
   "description": "Caching plugin for trakt.tv",
   "main": "./index.js",
   "repository": {
     "type": "git",
-    "url": "gitlab:MySidesTheyAreGone/trakt.tv-cache"
+    "url": "gitlab:MySidesTheyAreGone/trakt.tv-cached"
   },
   "keywords": [
     "trakt.tv",
-    "cache",
+    "cached",
     "plugin"
   ],
   "dependencies": {
@@ -25,9 +25,9 @@
   },
   "license": "AGPL-3.0",
   "bugs": {
-    "url": "https://gitlab.com/MySidesTheyAreGone/trakt.tv-cache/issues"
+    "url": "https://gitlab.com/MySidesTheyAreGone/trakt.tv-cached/issues"
   },
-  "homepage": "https://gitlab.com/MySidesTheyAreGone/trakt.tv-cache",
+  "homepage": "https://gitlab.com/MySidesTheyAreGone/trakt.tv-cached",
   "maintainers": [
     {
       "name": "MySidesTheyAreGone",
