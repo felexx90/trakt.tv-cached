@@ -152,7 +152,7 @@ cached._call = function (method, params) {
   let enqueue = params.enqueue
   let finalTTL = R.defaultTo(defaultTTL, params.ttl)
   let finalParams = R.omit(['enqueue', 'ttl'], params)
-  _debug('method: ' + method.url + ', params: ' + R.toString(params))
+  _debug('method: ' + method.url + ', params: ' + R.toString(R.dissoc('enqueue', params)))
   if (R.toUpper(method.method) !== 'GET') {
     _debug('this is not a GET request, forwarding...')
     return Trakt._call(method, params)
