@@ -8,13 +8,22 @@ let sweepInterval
 let sweepDelay = 60
 let defaultTTL = 0
 let debugEnabled = false
+let metricsEnabled = false
 
 let memory = {}
+let metrics = {hits: 0, misses: 0, xps: 0}
 
 function _debug (msg) {
   if (debugEnabled) {
     console.log('trakt.tv-cached | ' + msg)
   }
+}
+
+function _metrics () {
+  console.log('Metrics for this session:')
+  console.log('Hits: ' + metrics.hits)
+  console.log('Misses: ' + metrics.misses)
+  console.log('Epirations: ' + metrics.xps)
 }
 
 function collapse (k, obj) {
@@ -72,8 +81,9 @@ function isCached (key) {
     return false
   }
   if (hasExpired(key)) {
-    invalidate(key)
     _debug('key removed after expiration: ' + key)
+    metricsEnabled && metrics.xps++
+    invalidate(key)
     return false
   }
   _debug('key is in memory: ' + key)
@@ -84,6 +94,7 @@ function sweep () {
   for (let key in memory) {
     if (!R.isNil(memory[key]) && hasExpired(key)) {
       _debug('key removed after expiration by automatic sweeper: ' + key)
+      metricsEnabled && metrics.xps++
       invalidate(key)
     }
   }
@@ -110,6 +121,16 @@ function setSweepInterval (seconds) {
   return cached
 }
 
+function enableDebug () {
+  debugEnabled = true
+  return cached
+}
+
+function enableMetrics () {
+  metricsEnabled = true
+  return cached
+}
+
 function configure (options) {
   if (!R.isNil(options.defaultTTL)) {
     setDefaultTTL(options.defaultTTL)
@@ -123,10 +144,9 @@ cached.setDefaultTTL = setDefaultTTL
 
 cached.setSweepInterval = setSweepInterval
 
-cached.debug = function (enabled) {
-  debugEnabled = enabled
-  return cached
-}
+cached.enableDebug = enableDebug
+
+cached.enableMetrics = enableMetrics
 
 cached._call = function (method, params) {
   let enqueue = params.enqueue
@@ -142,11 +162,14 @@ cached._call = function (method, params) {
   _debug('ttl is ' + finalTTL)
   if (isCached(key)) {
     _debug('returning data from memory')
+    metricsEnabled && metrics.hits++
     return Promise.resolve(R.clone(get(key).value))
   } else if (!R.isNil(enqueue)) {
+    metricsEnabled && metrics.misses++
     _debug('calling enqueue function provided via "params"')
     return remember(finalTTL, key, () => enqueue(() => Trakt._call(method, finalParams)))
   } else {
+    metricsEnabled && metrics.misses++
     _debug('forwarding API call to main trakt.tv module')
     return remember(finalTTL, key, () => Trakt._call(method, finalParams))
   }
@@ -159,6 +182,9 @@ cached.start = function () {
 
 cached.stop = function () {
   clearInterval(sweepInterval)
+  if (metricsEnabled) {
+    _metrics()
+  }
   return cached
 }
 
