@@ -4,8 +4,11 @@ const crypto = require('crypto')
 
 let cached = module.exports = {}
 let Trakt
-let ttl = 0
+let sweepInterval
+let sweepDelay = 60
+let defaultTTL = 0
 let debugEnabled = false
+
 let memory = {}
 
 function _debug (msg) {
@@ -47,10 +50,8 @@ function hash (str) {
   return h.digest('hex')
 }
 
-function hasExpired (a) {
-  let expiry = R.clone(a).add(ttl, 'seconds')
-  let now = M()
-  return expiry.isBefore(now)
+function hasExpired (key) {
+  return memory[key].expiry.isBefore(M())
 }
 
 function get (key) {
@@ -70,7 +71,7 @@ function isCached (key) {
     _debug('key is not in memory: ' + key)
     return false
   }
-  if (hasExpired(memory[key].date, ttl)) {
+  if (hasExpired(key)) {
     invalidate(key)
     _debug('key removed after expiration: ' + key)
     return false
@@ -79,19 +80,35 @@ function isCached (key) {
   return true
 }
 
-async function remember (key, fn) {
+function sweep () {
+  for (let key in memory) {
+    if (!R.isNil(memory[key]) && hasExpired(key)) {
+      _debug('key removed after expiration by automatic sweeper: ' + key)
+      invalidate(key)
+    }
+  }
+}
+
+async function remember (ttl, key, fn) {
   let data = await fn()
-  set(key, {
-    value: data,
-    date: M()
-  })
+  if (ttl > 0) {
+    set(key, {
+      expiry: M().add(ttl, 'seconds'),
+      value: data
+    })
+  }
   return R.clone(data)
 }
 
 cached.memory = memory
 
-cached.ttl = function (seconds) {
-  ttl = seconds
+cached.setDefaultTTL = function (seconds) {
+  defaultTTL = seconds
+  return cached
+}
+
+cached.setSweepInterval = function (seconds) {
+  sweepInterval = seconds
   return cached
 }
 
@@ -100,25 +117,42 @@ cached.debug = function (enabled) {
   return cached
 }
 
-cached._call = function (method, params, enqueue) {
+cached._call = function (method, params) {
+  let enqueue = params.enqueue
+  let finalTTL = R.defaultTo(defaultTTL, params.ttl)
+  let finalParams = R.omit(['enqueue', 'ttl'], params)
   _debug('method: ' + method.url + ', params: ' + R.toString(params))
   if (R.toUpper(method.method) !== 'GET') {
-    _debug('method: ' + method.url + ' is not a GET request, forwarding...')
+    _debug('this is not a GET request, forwarding...')
     return Trakt._call(method, params)
   }
-  let key = hash(Trakt._settings.client_id + '|' + method.url + '|' + stringify(params))
+  let key = hash(Trakt._settings.client_id + '|' + method.url + '|' + stringify(collapse('', finalParams)))
   _debug('key generated: ' + key)
+  _debug('ttl is ' + finalTTL)
   if (isCached(key)) {
-    _debug('returning data from memory (key: ' + key + ')')
+    _debug('returning data from memory')
     return Promise.resolve(R.clone(get(key).value))
   } else if (!R.isNil(enqueue)) {
-    return remember(key, () => enqueue(() => Trakt._call(method, params)))
+    _debug('calling enqueue function provided via "params"')
+    return remember(finalTTL, key, () => enqueue(() => Trakt._call(method, finalParams)))
   } else {
-    return remember(key, () => Trakt._call(method, params))
+    _debug('forwarding API call to main trakt.tv module')
+    return remember(finalTTL, key, () => Trakt._call(method, finalParams))
   }
+}
+
+cached.start = function () {
+  sweepInterval = setInterval(sweep, sweepDelay * 1000)
+  return cached
+}
+
+cached.stop = function () {
+  clearInterval(sweepInterval)
+  return cached
 }
 
 cached.init = function (trakt) {
   Trakt = trakt
   trakt._construct.apply(cached)
+  cached.start()
 }
