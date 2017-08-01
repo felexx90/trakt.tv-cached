@@ -1,6 +1,6 @@
 {
   "name": "trakt.tv-cached",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Caching plugin for trakt.tv",
   "main": "./index.js",
   "repository": {
@@ -28,8 +28,10 @@
     "url": "https://gitlab.com/MySidesTheyAreGone/trakt.tv-cached/issues"
   },
   "homepage": "https://gitlab.com/MySidesTheyAreGone/trakt.tv-cached",
-  "maintainers": [{
-    "name": "MySidesTheyAreGone",
-    "email": "mysidestheyaregone@openmailbox.org"
-  }]
+  "maintainers": [
+    {
+      "name": "MySidesTheyAreGone",
+      "email": "mysidestheyaregone@openmailbox.org"
+    }
+  ]
 }
