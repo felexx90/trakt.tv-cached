@@ -100,17 +100,28 @@ async function remember (ttl, key, fn) {
   return R.clone(data)
 }
 
-cached.memory = memory
-
-cached.setDefaultTTL = function (seconds) {
+function setDefaultTTL (seconds) {
   defaultTTL = seconds
   return cached
 }
 
-cached.setSweepInterval = function (seconds) {
-  sweepInterval = seconds
+function setSweepInterval (seconds) {
+  sweepDelay = seconds
   return cached
 }
+
+function configure (options) {
+  if (!R.isNil(options.defaultTTL)) {
+    setDefaultTTL(options.defaultTTL)
+  }
+  if (!R.isNil(options.sweepInterval)) {
+    setSweepInterval(options.sweepInterval)
+  }
+}
+
+cached.setDefaultTTL = setDefaultTTL
+
+cached.setSweepInterval = setSweepInterval
 
 cached.debug = function (enabled) {
   debugEnabled = enabled
@@ -151,8 +162,9 @@ cached.stop = function () {
   return cached
 }
 
-cached.init = function (trakt) {
+cached.init = function (trakt, options) {
   Trakt = trakt
   trakt._construct.apply(cached)
+  configure(options)
   cached.start()
 }
