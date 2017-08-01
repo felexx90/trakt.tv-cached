@@ -1,82 +1,148 @@
+# Needs more testing, still unreleased
+
+
 # trakt.tv-cached
 Experimental plugin that automatically caches any GET call fired by the main module trakt.tv
 
 At the moment it depends on any version of Node.js that supports async/await.
 
-## Setup:
-```bash
-$ git clone https://github.com/MySidesTheyAreGone/trakt.tv-cached.git
-$ cd trakt.tv-cached
-$ npm i
+
+
+## Usage
+
+Install the plugin as a normal dependency:
+
+```js
+$ npm i trakt.tv-cached --save
 ```
 
-## Try it out
+When you create a trakt.tv instance, use the `plugins` field to require this module and pass it along:
 
-Run this script (use your client id and secret):
+```js
+const Trakt = require('trakt.tv')
+const trakt = new Trakt({
+  client_id: 'YYY',
+  client_secret: 'ZZZ',
+  plugins: {
+    cached: require('trakt.tv-cached')
+  }
+})
+```
+
+At this point you can make API calls in two ways. One is using the main module directly:
+
+```js
+let data = await trakt.seasons.season({id: 'game-of-thrones', season: 4})
+```
+
+This will work as usual and nothing will be cached.
+
+The other way is to add `cached.` before the method you would normally use:
+
+```js
+let data = await trakt.cached.seasons.season({id: 'game-of-thrones', season: 4})
+```
+
+This would cache the data returned by trakt.tv so that a second identical request wouldn't hit the website a second time. **BUT!!**
+
+The cache doesn't remember data forever. It only keeps it in memory for a time called **TTL** (time to live). The TTL of the request above is **zero**. That's because the *default* TTL is zero and you didn't set it to a different value.
+
+To specify a TTL *for this call only*, add a `ttl` parameter:
+
+```js
+let data = await trakt.cached.seasons.season({id: 'game-of-thrones', season: 4, ttl: 25})
+```
+
+The TTL is specified in seconds, so the data returned from that call will have a 25 seconds lifetime. If you ask for the fourth season of Game of Thrones a second time before 25 seconds have passed, the data will be returned from memory instantly in the form of a resolved Promise.
+
+Once per minute, `trakt.tv-cached` will automatically run a function that will remove any expired data, freeing up memory. I call this "sweeping".
+
+**Only GET calls are cached.** Anything else will work normally. You **can** call `trakt.cached.checkin.add`, it will work fine but it won't cache anything.
+
+Once you're done and you want to quit the app you created, call:
+
+```js
+trakt.cached.stop()
+```
+
+This will clear a few things, including an interval, and let the Node.js process quit gracefully.
+
+
+
+## Settings
+
+
+### Time-to-live
+
+To set a default TTL for any call and save yourself the need to use a `ttl` parameter in each and every call you make, use the `setDefaultTTL` function. Remember that the value is in seconds.
+
+```js
+// data will always be cached for 20 seconds
+trakt.cached.setDefaultTTL(20)
+```
+
+The `ttl` parameter overrides the default setting, so you can set a default that makes sense for most calls but still indicate a much lower one when you get a user's latest activities or a much longer one when you need the details of an episode.
+
+```js
+// data will generally be cached for 60 seconds...
+trakt.cached.setDefaultTTL(60)
+
+// but this data in particular will be cached for an entire hour! It's like magic!!
+let data = await trakt.cached.seasons.season({id: 'game-of-thrones', season: 4, ttl: 3600})
+```
+
+Remember: unless you set a TTL, by default nothing will be cached.
+
+
+### Sweeping
+
+`trakt.tv-cached` will go through the entire cache every 60 seconds and remove any expired data. If you need to change this for any reason, you're in luck:
+
+```js
+trakt.cached.setSweepInterval(120) // every 2 minutes
+```
+
+I thought of everything!!1!
+
+
+### Set everything up at once
+
+You can configure the default TTL and sweep interval when you require `trakt.tv`:
+
 ```js
 let Trakt = require('trakt.tv')
 let trakt = new Trakt({
-  client_id: 'XXX',
-  client_secret: 'YYY',
+  client_id: 'YYY',
+  client_secret: 'ZZZ',
   plugins: {
-    cached: require('./index.js')
+    cached: require('trakt.tv-cached')
+  },
+  options: {
+    cached: {
+      defaultTTL: 60,
+      sweepInterval: 120
+    }
   }
 })
-
-trakt.cached.debug(true)
-
-async function test () {
-  try {
-    console.time('first call')
-    let data = await trakt.cached.ttl(15).seasons.season({id: 'game-of-thrones', season: 4})
-    console.timeEnd('first call')
-    console.log(data.length + ' episodes fetched')
-
-    console.time('second call')
-    data = await trakt.cached.ttl(15).seasons.season({id: 'game-of-thrones', season: 4})
-    console.timeEnd('second call')
-    console.log(data.length + ' episodes fetched')
-
-    console.log('repeating call one last time with 0 ttl')
-    console.time('third call')
-    data = await trakt.cached.ttl(0).seasons.season({id: 'game-of-thrones', season: 4})
-    console.timeEnd('third call')
-    console.log(data.length + ' episodes fetched')
-  }
-  catch (e) {
-    console.log(e)
-  }
-}
-
-test()
 ```
-Output:
+
+## Debugging
+
+At this time this is an extremely simple module and there aren't that many useful debugging tools.
+
+```js
+trakt.cached.enableDebug()
+trakt.cached.enableMetrics()
 ```
-trakt.tv-cached | method: /shows/:id/seasons/:season, params: {"id": "game-of-thrones", "season": 4}
-trakt.tv-cached | key generated: accb57b88156718e7a9645b0b513dcb4e921f66912c846291ccbe4516ab53006|/shows/:id/seasons/:season|id:game-of-thrones|season:4
-trakt.tv-cached | key is not in memory: accb57b88156718e7a9645b0b513dcb4e921f66912c846291ccbe4516ab53006|/shows/:id/seasons/:season|id:game-of-thrones|season:4
-trakt.tv-cached | forwarding... (key: accb57b88156718e7a9645b0b513dcb4e921f66912c846291ccbe4516ab53006|/shows/:id/seasons/:season|id:game-of-thrones|season:4)
-first call: 408.444ms
-10 episodes fetched
-trakt.tv-cached | method: /shows/:id/seasons/:season, params: {"id": "game-of-thrones", "season": 4}
-trakt.tv-cached | key generated: accb57b88156718e7a9645b0b513dcb4e921f66912c846291ccbe4516ab53006|/shows/:id/seasons/:season|id:game-of-thrones|season:4
-trakt.tv-cached | key is in memory: accb57b88156718e7a9645b0b513dcb4e921f66912c846291ccbe4516ab53006|/shows/:id/seasons/:season|id:game-of-thrones|season:4
-trakt.tv-cached | returning data from memory (key: accb57b88156718e7a9645b0b513dcb4e921f66912c846291ccbe4516ab53006|/shows/:id/seasons/:season|id:game-of-thrones|season:4)
-second call: 5.146ms
-10 episodes fetched
-repeating call one last time with 0 ttl
-trakt.tv-cached | method: /shows/:id/seasons/:season, params: {"id": "game-of-thrones", "season": 4}
-trakt.tv-cached | key generated: accb57b88156718e7a9645b0b513dcb4e921f66912c846291ccbe4516ab53006|/shows/:id/seasons/:season|id:game-of-thrones|season:4
-trakt.tv-cached | key removed after expiration: accb57b88156718e7a9645b0b513dcb4e921f66912c846291ccbe4516ab53006|/shows/:id/seasons/:season|id:game-of-thrones|season:4
-trakt.tv-cached | forwarding... (key: accb57b88156718e7a9645b0b513dcb4e921f66912c846291ccbe4516ab53006|/shows/:id/seasons/:season|id:game-of-thrones|season:4)
-third call: 206.287ms
-10 episodes fetched
-```
+
+`enableDebug` will make this module print a load of messages of dubious usefulness to the console.
+
+`enableMetrics` will keep count of a few interesting things. It will print them when you call `trakt.cached.stop()`.
 
 
 ## LICENSE
 
-The MIT License (MIT) - author: Jean van Kasteel <vankasteelj@gmail.com>
+The MIT License (MIT) - author: MySidesTheyAreGone <mysidestheyaregone@protonmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
