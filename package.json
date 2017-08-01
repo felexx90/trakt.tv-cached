@@ -23,15 +23,13 @@
     "name": "MySidesTheyAreGone",
     "email": "mysidestheyaregone@protonmail.com"
   },
-  "license": "AGPL-3.0",
+  "license": "MIT",
   "bugs": {
     "url": "https://gitlab.com/MySidesTheyAreGone/trakt.tv-cached/issues"
   },
   "homepage": "https://gitlab.com/MySidesTheyAreGone/trakt.tv-cached",
-  "maintainers": [
-    {
-      "name": "MySidesTheyAreGone",
-      "email": "mysidestheyaregone@openmailbox.org"
-    }
-  ]
+  "maintainers": [{
+    "name": "MySidesTheyAreGone",
+    "email": "mysidestheyaregone@openmailbox.org"
+  }]
 }
