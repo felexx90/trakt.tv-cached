@@ -1,4 +1,6 @@
 # trakt.tv-cached
+[![NPM](https://nodei.co/npm/trakt.tv-cached.png?downloads=true&stars=true)](https://nodei.co/npm/trakt.tv-cached/)
+[![NPM](https://nodei.co/npm-dl/trakt.tv-cached.png?months=6)](https://nodei.co/npm/trakt.tv-cached/)
 
 This plugin automatically caches any GET call fired by the main module `trakt.tv`
 
