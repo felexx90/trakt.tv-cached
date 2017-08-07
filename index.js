@@ -2,7 +2,6 @@ const R = require('ramda')
 const M = require('moment')
 const crypto = require('crypto')
 
-let cached = module.exports = {}
 let Trakt
 let sweepInterval
 let sweepDelay = 60
@@ -10,7 +9,7 @@ let defaultTTL = 0
 let debugEnabled = false
 let metricsEnabled = false
 
-let memory = {}
+let memory = Object.create(null)
 let metrics = {hits: 0, misses: 0, xps: 0}
 
 function _debug (msg) {
@@ -23,7 +22,7 @@ function _metrics () {
   console.log('Metrics for this session:')
   console.log('Hits: ' + metrics.hits)
   console.log('Misses: ' + metrics.misses)
-  console.log('Epirations: ' + metrics.xps)
+  console.log('Expirations: ' + metrics.xps)
 }
 
 function collapse (k, obj) {
@@ -140,15 +139,20 @@ function configure (options) {
   }
 }
 
-cached.setDefaultTTL = setDefaultTTL
+function start () {
+  sweepInterval = setInterval(sweep, sweepDelay * 1000)
+  return cached
+}
 
-cached.setSweepInterval = setSweepInterval
+function stop () {
+  clearInterval(sweepInterval)
+  if (metricsEnabled) {
+    _metrics()
+  }
+  return cached
+}
 
-cached.enableDebug = enableDebug
-
-cached.enableMetrics = enableMetrics
-
-cached._call = function (method, params) {
+function _call (method, params) {
   let enqueue = params.enqueue
   let finalTTL = R.defaultTo(defaultTTL, params.ttl)
   let finalParams = R.omit(['enqueue', 'ttl'], params)
@@ -158,8 +162,7 @@ cached._call = function (method, params) {
     return Trakt._call(method, params)
   }
   let key = hash(Trakt._settings.client_id + '|' + method.url + '|' + stringify(collapse('', finalParams)))
-  _debug('key generated: ' + key)
-  _debug('ttl is ' + finalTTL)
+  _debug('key generated: ' + key + ', ttl is ' + finalTTL)
   if (isCached(key)) {
     _debug('returning data from memory')
     metricsEnabled && metrics.hits++
@@ -175,17 +178,14 @@ cached._call = function (method, params) {
   }
 }
 
-cached.start = function () {
-  sweepInterval = setInterval(sweep, sweepDelay * 1000)
-  return cached
-}
-
-cached.stop = function () {
-  clearInterval(sweepInterval)
-  if (metricsEnabled) {
-    _metrics()
-  }
-  return cached
+let cached = module.exports = {
+  setDefaultTTL,
+  setSweepInterval,
+  enableDebug,
+  enableMetrics,
+  start,
+  stop,
+  _call
 }
 
 cached.init = function (trakt, options) {
