@@ -1,11 +1,10 @@
-# Needs more testing, still unreleased
-
-
 # trakt.tv-cached
-Experimental plugin that automatically caches any GET call fired by the main module trakt.tv
+
+This plugin automatically caches any GET call fired by the main module `trakt.tv`
 
 At the moment it depends on any version of Node.js that supports async/await.
 
+If you'd like to also queue up your API calls in order to avoid hitting trakt.tv servers too often (e.g. "no more than 2 calls per second") check out the plugin `trakt.tv-queued`, which can be combined with this one.
 
 
 ## Usage
@@ -128,7 +127,7 @@ let trakt = new Trakt({
 
 ## Debugging
 
-At this time this is an extremely simple module and there aren't that many useful debugging tools.
+This is an extremely simple module and there aren't that many useful debugging tools.
 
 ```js
 trakt.cached.enableDebug()
