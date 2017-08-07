@@ -136,7 +136,7 @@ trakt.cached.enableMetrics()
 
 `enableDebug` will make this module print a load of messages of dubious usefulness to the console.
 
-`enableMetrics` will keep count of a few interesting things. It will print them when you call `trakt.cached.stop()`.
+`enableMetrics` will keep count of a few interesting things. It will print them when you call `trakt.cached.stop()`. If something is returned from the cache it's a "hit", if it isn't it's a "miss" and every time something is removed from the cache it's an "expiration". This should help you figure out if the cache is actually being used; e.g. if you get a ton of expirations and misses, you're not caching it long enough and should either increase the TTL or remove this plugin.
 
 
 ## LICENSE
