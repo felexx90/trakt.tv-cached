@@ -5,7 +5,7 @@
   "main": "./index.js",
   "repository": {
     "type": "git",
-    "url": "gitlab:MySidesTheyAreGone/trakt.tv-cached"
+    "url": "MySidesTheyAreGone/trakt.tv-cached"
   },
   "keywords": [
     "trakt.tv",
@@ -25,9 +25,9 @@
   },
   "license": "MIT",
   "bugs": {
-    "url": "https://gitlab.com/MySidesTheyAreGone/trakt.tv-cached/issues"
+    "url": "https://github.com/MySidesTheyAreGone/trakt.tv-cached/issues"
   },
-  "homepage": "https://gitlab.com/MySidesTheyAreGone/trakt.tv-cached",
+  "homepage": "https://github.com/MySidesTheyAreGone/trakt.tv-cached",
   "maintainers": [
     {
       "name": "MySidesTheyAreGone",
