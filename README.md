@@ -1,4 +1,6 @@
 # trakt.tv-cached
+[![JavaScript Style Guide](https://cdn.rawgit.com/standard/standard/master/badge.svg)](https://github.com/standard/standard)    
+
 [![NPM](https://nodei.co/npm/trakt.tv-cached.png?downloads=true&stars=true)](https://nodei.co/npm/trakt.tv-cached/)
 [![NPM](https://nodei.co/npm-dl/trakt.tv-cached.png?months=6)](https://nodei.co/npm/trakt.tv-cached/)
 
