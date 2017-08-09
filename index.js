@@ -157,13 +157,9 @@ function _call (method, params) {
   let finalTTL = R.defaultTo(defaultTTL, params.ttl)
   let finalParams = R.omit(['enqueue', 'ttl'], params)
   _debug('method: ' + method.url + ', params: ' + R.toString(R.dissoc('enqueue', params)))
-  if (R.toUpper(method.method) !== 'GET') {
-    _debug('this is not a GET request, forwarding...')
-    return Trakt._call(method, params)
-  }
   let key = hash(Trakt._settings.client_id + '|' + method.url + '|' + stringify(collapse('', finalParams)))
   _debug('key generated: ' + key + ', ttl is ' + finalTTL)
-  if (isCached(key)) {
+  if (R.toUpper(method.method) === 'GET' && isCached(key)) {
     _debug('returning data from memory')
     metricsEnabled && metrics.hits++
     return Promise.resolve(R.clone(get(key).value))
