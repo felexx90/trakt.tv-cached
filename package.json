@@ -1,6 +1,6 @@
 {
   "name": "trakt.tv-cached",
-  "version": "1.0.2",
+  "version": "2.0.0",
   "description": "Caching plugin for trakt.tv",
   "main": "./index.js",
   "repository": {
