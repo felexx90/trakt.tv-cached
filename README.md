@@ -1,6 +1,5 @@
-# trakt.tv-cached
-[![JavaScript Style Guide](https://cdn.rawgit.com/standard/standard/master/badge.svg)](https://github.com/standard/standard)    
-
+# trakt.tv-cached v2
+[![JavaScript Style Guide](https://cdn.rawgit.com/standard/standard/master/badge.svg)](https://github.com/standard/standard)<br /><br />
 [![NPM](https://nodei.co/npm/trakt.tv-cached.png?downloads=true&stars=true)](https://nodei.co/npm/trakt.tv-cached/)
 [![NPM](https://nodei.co/npm-dl/trakt.tv-cached.png?months=6)](https://nodei.co/npm/trakt.tv-cached/)
 
@@ -48,69 +47,25 @@ let data = await trakt.cached.seasons.season({id: 'game-of-thrones', season: 4})
 
 This would cache the data returned by trakt.tv so that a second identical request wouldn't hit the website a second time. **BUT!!**
 
-The cache doesn't remember data forever. It only keeps it in memory for a time called **TTL** (time to live). The TTL of the request above is **zero**. That's because the *default* TTL is zero and you didn't set it to a different value.
+The cache doesn't remember data forever. It only keeps it in memory for a time called **TTL** (time to live). The TTL of the request above is **zero**, which means **forever**. That's because the *default* TTL is zero and you didn't set it to a different value.
 
-To specify a TTL *for this call only*, add a `ttl` parameter:
-
-```js
-let data = await trakt.cached.seasons.season({id: 'game-of-thrones', season: 4, ttl: 25})
-```
-
-The TTL is specified in seconds, so the data returned from that call will have a 25 seconds lifetime. If you ask for the fourth season of Game of Thrones a second time before 25 seconds have passed, the data will be returned from memory instantly in the form of a resolved Promise.
-
-Once per minute, `trakt.tv-cached` will automatically run a function that will remove any expired data, freeing up memory. I call this "sweeping".
-
-**Only GET calls are cached.** Anything else will work normally. You **can** call `trakt.cached.checkin.add`, it will work fine but it won't cache anything.
-
-Once you're done and you want to quit the app you created, call:
+To specify a different TTL *for this call only*, add a `system:ttl` parameter:
 
 ```js
-trakt.cached.stop()
+let data = await trakt.cached.seasons.season({id: 'game-of-thrones', season: 4, 'system:ttl': 25})
 ```
 
-This will clear a few things, including an interval, and let the Node.js process quit gracefully.
+The TTL is specified in seconds, so the data returned from that call will only have a 25 seconds lifetime. If you ask for the fourth season of Game of Thrones a second time before 25 seconds have passed, the data will be returned from memory instantly in the form of a resolved Promise.
 
-
-
-## Settings
-
-
-### Time-to-live
-
-To set a default TTL for any call and save yourself the need to use a `ttl` parameter in each and every call you make, use the `setDefaultTTL` function. Remember that the value is in seconds.
+If you want to set a default TTL for any request, you can (and should) do so:
 
 ```js
-// data will always be cached for 20 seconds
-trakt.cached.setDefaultTTL(20)
+trakt.cached.setDefaultTTL(3600)
 ```
 
-The `ttl` parameter overrides the default setting, so you can set a default that makes sense for most calls but still indicate a much lower one when you get a user's latest activities or a much longer one when you need the details of an episode.
+That's a TTL of one hour.
 
-```js
-// data will generally be cached for 60 seconds...
-trakt.cached.setDefaultTTL(60)
-
-// but this data in particular will be cached for an entire hour! It's like magic!!
-let data = await trakt.cached.seasons.season({id: 'game-of-thrones', season: 4, ttl: 3600})
-```
-
-Remember: unless you set a TTL, by default nothing will be cached.
-
-
-### Sweeping
-
-`trakt.tv-cached` will go through the entire cache every 60 seconds and remove any expired data. If you need to change this for any reason, you're in luck:
-
-```js
-trakt.cached.setSweepInterval(120) // every 2 minutes
-```
-
-I thought of everything!!1!
-
-
-### Set everything up at once
-
-You can configure the default TTL and sweep interval when you require `trakt.tv`:
+You can set a default TTL at construction time too:
 
 ```js
 let Trakt = require('trakt.tv')
@@ -122,12 +77,221 @@ let trakt = new Trakt({
   },
   options: {
     cached: {
-      defaultTTL: 60,
-      sweepInterval: 120
+      defaultTTL: 3600
     }
   }
 })
 ```
+
+Take note of where the options go!
+
+**Only GET calls are cached.** Anything else will work normally. You **can** call `trakt.cached.checkin.add(...)`, it will work fine but nothing will be cached.
+
+
+## Running out of space?
+
+If your cache tends to grow over time it must be because some of the calls you make are never repeated. That means that expired data will remain in the cache, since it's only removed when attempting to retrieve it.
+
+To free up memory you have two options. `clear` will empty the cache completely (this will also remove data with a zero TTL that would otherwise stay in memory permanently):
+
+```js
+await trakt.cached.clear() // resolves with undefined
+```
+
+A more expensive, but still pretty quick, option is `shrink`:
+
+```js
+await trakt.cached.shrink() // resolves with undefined
+```
+
+`shrink` will go through the entire cache and *remove expired data only*. This is your best option as long as you can run it on a timer or every X requests.
+
+
+## Persisting the cache
+
+By default `trakt.tv-cached` will store data in memory, but by the power of [Keyv](https://github.com/lukechilds/keyv) and [Keyv-shrink](https://github.com/MySidesTheyAreGone/keyv-shrink) if you want to persist the cache on a DB you can, as long as you specify the right options in `storageOptions`.
+
+The option `handleError` is important when using any storage other than memory. It will be used to handle errors that would be thrown asynchronously and would destroy your app. It defaults to `console.error`, but please set it to something sane.
+
+The option `namespace` is always available and can be used to make sure that key collisions do not happen when the same DB is used by more than one application. Just set it to something unique and anything you do will leave the rest of the DB intact, including `shrink()` and `clear()`.
+
+### Redis
+
+Install `@keyv/redis`:
+
+```bash
+npm i --save @keyv/redis
+```
+
+```js
+let Trakt = require('trakt.tv')
+let trakt = new Trakt({
+  client_id: 'YYY',
+  client_secret: 'ZZZ',
+  plugins: {
+    cached: require('trakt.tv-cached')
+  },
+  options: {
+    cached: {
+      defaultTTL: 3600,
+      connection: 'redis://user:pass@localhost:6379',
+      handleError: myHandler,
+      storageOptions: {
+        namespace: 'thisParticularApp',
+        // any redis.createClient() options go here, e.g.:
+        disable_resubscribing: true
+      }
+    }
+  }
+})
+```
+[`redis.createClient()` documentation](https://github.com/NodeRedis/node_redis#rediscreateclient)
+
+Redis supports TTL natively, so `shrink()` is a no-op.
+
+
+### MongoDB
+
+Install `@keyv/mongo`:
+
+```bash
+npm i --save @keyv/mongo
+```
+
+```js
+let Trakt = require('trakt.tv')
+let trakt = new Trakt({
+  client_id: 'YYY',
+  client_secret: 'ZZZ',
+  plugins: {
+    cached: require('trakt.tv-cached')
+  },
+  options: {
+    cached: {
+      defaultTTL: 3600,
+      connection: 'mongodb://user:pass@localhost:27017/dbname',
+      handleError: myHandler,
+      storageOptions: {
+        namespace: 'thisParticularApp',
+        collection: 'somecache' // default is 'keyv'
+      }
+    }
+  }
+})
+```
+
+MongoDB supports TTL natively, so `shrink()` is a no-op.
+
+
+### SQLite
+
+Install `keyv-sqlite-shrink`:
+
+```bash
+npm i --save keyv-sqlite-shrink
+```
+
+```js
+let Trakt = require('trakt.tv')
+let trakt = new Trakt({
+  client_id: 'YYY',
+  client_secret: 'ZZZ',
+  plugins: {
+    cached: require('trakt.tv-cached')
+  },
+  options: {
+    cached: {
+      defaultTTL: 3600,
+      connection: 'sqlite://path/to/database.sqlite',
+      handleError: myHandler,
+      storageOptions: {
+        namespace: 'thisParticularApp',
+        // you can specify the table name:
+        table: 'myappcache',
+        // and the busyTimeout period:
+        busyTimeout: 30000
+      }
+    }
+  }
+})
+```
+[`busyTimeout` documentation](https://sqlite.org/c3ref/busy_timeout.html)
+
+### Postgres
+
+Install `keyv-postgres-shrink`:
+
+```bash
+npm i --save keyv-postgres-shrink
+```
+
+```js
+let Trakt = require('trakt.tv')
+let trakt = new Trakt({
+  client_id: 'YYY',
+  client_secret: 'ZZZ',
+  plugins: {
+    cached: require('trakt.tv-cached')
+  },
+  options: {
+    cached: {
+      defaultTTL: 3600,
+      connection: 'postgresql://user:pass@localhost:5432/dbname',
+      handleError: myHandler,
+      storageOptions: {
+        namespace: 'thisParticularApp',
+        // you can specify the table name:
+        table: 'myappcache'
+      }
+    }
+  }
+})
+```
+
+
+### MySQL
+
+Install `keyv-mysql-shrink`:
+
+```bash
+npm i --save keyv-mysql-shrink
+```
+
+```js
+let Trakt = require('trakt.tv')
+let trakt = new Trakt({
+  client_id: 'YYY',
+  client_secret: 'ZZZ',
+  plugins: {
+    cached: require('trakt.tv-cached')
+  },
+  options: {
+    cached: {
+      defaultTTL: 3600,
+      connection: 'mysql://user:pass@localhost:3306/dbname',
+      handleError: myHandler,
+      storageOptions: {
+        namespace: 'thisParticularApp',
+        // you can specify the table name:
+        table: 'myappcache'
+      }
+    }
+  }
+})
+```
+
+If you get an error about the table key being too large, create the table yourself before running your app. This is what's being attempted behind the scenes:
+
+```sql
+CREATE TABLE `tablename` (
+  `key` VARCHAR(255) PRIMARY KEY,
+  `value` TEXT,
+  `expiry` BIGINT
+)
+```
+
+Change the `VARCHAR` size to fix the problem. If you're using `utf8m4` as the default encoding, then the limit is 191 characters. Depending on the encoding used it could be different.
+
 
 ## Debugging
 

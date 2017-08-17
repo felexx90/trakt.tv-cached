@@ -1,28 +1,23 @@
 const R = require('ramda')
-const M = require('moment')
 const crypto = require('crypto')
+const Keyv = require('keyv-shrink')
+
+const enqueueField = 'system:enqueue'
+const ttlField = 'system:ttl'
+const keyField = 'system:key'
 
 let Trakt
-let sweepInterval
-let sweepDelay = 60
 let defaultTTL = 0
 let debugEnabled = false
 let metricsEnabled = false
 
-let memory = Object.create(null)
-let metrics = {hits: 0, misses: 0, xps: 0}
+let cache
+let metrics = {hits: 0, misses: 0}
 
 function _debug (msg) {
   if (debugEnabled) {
     console.log('trakt.tv-cached | ' + msg)
   }
-}
-
-function _metrics () {
-  console.log('Metrics for this session:')
-  console.log('Hits: ' + metrics.hits)
-  console.log('Misses: ' + metrics.misses)
-  console.log('Expirations: ' + metrics.xps)
 }
 
 function collapse (k, obj) {
@@ -58,65 +53,28 @@ function hash (str) {
   return h.digest('hex')
 }
 
-function hasExpired (key) {
-  return memory[key].expiry.isBefore(M())
-}
-
-function get (key) {
-  return memory[key]
-}
-
-function set (key, value) {
-  memory[key] = value
-}
-
-function invalidate (key) {
-  memory[key] = null
-}
-
-function isCached (key) {
-  if (R.isNil(memory[key])) {
-    _debug('key is not in memory: ' + key)
-    return false
-  }
-  if (hasExpired(key)) {
-    _debug('key removed after expiration: ' + key)
-    metricsEnabled && metrics.xps++
-    invalidate(key)
-    return false
-  }
-  _debug('key is in memory: ' + key)
-  return true
-}
-
-function sweep () {
-  for (let key in memory) {
-    if (!R.isNil(memory[key]) && hasExpired(key)) {
-      _debug('key removed after expiration by automatic sweeper: ' + key)
-      metricsEnabled && metrics.xps++
-      invalidate(key)
-    }
-  }
-}
-
 async function remember (ttl, key, fn) {
   let data = await fn()
   if (ttl > 0) {
-    set(key, {
-      expiry: M().add(ttl, 'seconds'),
-      value: data
-    })
+    await cache.set(key, data, ttl * 1000)
   }
   return R.clone(data)
 }
 
-function setDefaultTTL (seconds) {
-  defaultTTL = seconds
-  return cached
+function forget (key) {
+  return cache.delete(key)
 }
 
-function setSweepInterval (seconds) {
-  sweepDelay = seconds
+function shrink () {
+  return cache.shrink()
+}
+
+function clear () {
+  return cache.clear()
+}
+
+function setDefaultTTL (seconds) {
+  defaultTTL = seconds
   return cached
 }
 
@@ -130,39 +88,38 @@ function enableMetrics () {
   return cached
 }
 
-function configure (options) {
-  if (!R.isNil(options.defaultTTL)) {
-    setDefaultTTL(options.defaultTTL)
-  }
-  if (!R.isNil(options.sweepInterval)) {
-    setSweepInterval(options.sweepInterval)
-  }
+function getMetrics () {
+  return metrics
 }
 
-function start () {
-  sweepInterval = setInterval(sweep, sweepDelay * 1000)
-  return cached
-}
-
-function stop () {
-  clearInterval(sweepInterval)
-  if (metricsEnabled) {
-    _metrics()
+async function _call (method, params) {
+  let enqueue = params[enqueueField]
+  let finalParams = R.omit([enqueueField, ttlField, keyField], params)
+  if (R.toUpper(method.method) !== 'GET') {
+    if (R.isNil(enqueue)) {
+      return Trakt._call(method, finalParams)
+    } else {
+      return enqueue(() => Trakt._call(method, finalParams))
+    }
   }
-  return cached
-}
-
-function _call (method, params) {
-  let enqueue = params.enqueue
-  let finalTTL = R.defaultTo(defaultTTL, params.ttl)
-  let finalParams = R.omit(['enqueue', 'ttl'], params)
-  _debug('method: ' + method.url + ', params: ' + R.toString(R.dissoc('enqueue', params)))
-  let key = hash(Trakt._settings.client_id + '|' + method.url + '|' + stringify(collapse('', finalParams)))
-  _debug('key generated: ' + key + ', ttl is ' + finalTTL)
-  if (R.toUpper(method.method) === 'GET' && isCached(key)) {
+  let finalTTL = R.defaultTo(defaultTTL, params[ttlField])
+  let userDefKey = params[keyField]
+  _debug('method: ' + method.url + ', params: ' + R.toString(finalParams))
+  let keySource
+  let key
+  if (R.isNil(userDefKey)) {
+    keySource = method.url + '|' + stringify(collapse('', finalParams))
+    key = hash(keySource)
+  } else {
+    keySource = 'userdef'
+    key = userDefKey
+  }
+  _debug('key source: ' + keySource + ' key generated: ' + key + ', ttl is ' + finalTTL)
+  let data = await cache.get(key)
+  if (!R.isNil(data)) {
     _debug('returning data from memory')
     metricsEnabled && metrics.hits++
-    return Promise.resolve(R.clone(get(key).value))
+    return Promise.resolve(data)
   } else if (!R.isNil(enqueue)) {
     metricsEnabled && metrics.misses++
     _debug('calling enqueue function provided via "params"')
@@ -176,17 +133,29 @@ function _call (method, params) {
 
 let cached = module.exports = {
   setDefaultTTL,
-  setSweepInterval,
   enableDebug,
   enableMetrics,
-  start,
-  stop,
+  getMetrics,
+  delete: forget,
+  shrink,
+  clear,
   _call
 }
 
 cached.init = function (trakt, options) {
   Trakt = trakt
   trakt._construct.apply(cached)
-  configure(options)
-  cached.start()
+
+  if (!R.isNil(options.defaultTTL)) {
+    setDefaultTTL(options.defaultTTL)
+  }
+  let uri = R.defaultTo(null, options.connection)
+  let storageOpts = R.merge(options.storageOptions, {
+    table: R.defaultTo('trakt.tv-cached', options.storageOptions.table)
+  })
+  let handleError = R.defaultTo(console.error, options.handleError)
+
+  cache = new Keyv(uri, storageOpts)
+
+  cache.on('error', handleError)
 }

@@ -13,8 +13,8 @@
     "plugin"
   ],
   "dependencies": {
-    "moment": "2.18.1",
-    "ramda": "0.24.1"
+    "keyv-shrink": "^2.0.1",
+    "ramda": "^0.24.1"
   },
   "devDependencies": {
     "trakt.tv": "5.1.0"
