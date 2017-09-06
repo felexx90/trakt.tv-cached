@@ -273,14 +273,15 @@ let trakt = new Trakt({
       storageOptions: {
         namespace: 'thisParticularApp',
         // you can specify the table name:
-        table: 'myappcache'
+        table: 'myappcache',
+        keySize: 255 // this is the default key column size
       }
     }
   }
 })
 ```
 
-If you get an error about the table key being too large, create the table yourself before running your app. This is what's being attempted behind the scenes:
+If you get an error about the table key being too large, you can either create the table yourself before running your app or set `keySize` to 191 or lower (this setting is supported only by `keyv-mysql-shrink` version 1.1.1 or higher). This is what's being attempted behind the scenes:
 
 ```sql
 CREATE TABLE `tablename` (
