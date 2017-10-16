@@ -1,5 +1,5 @@
 const R = require('ramda')
-const crypto = require('crypto')
+const MD5 = require('md5.js')
 const Keyv = require('keyv-shrink')
 
 const enqueueField = 'system:enqueue'
@@ -48,7 +48,7 @@ function stringify (obj) {
 }
 
 function hash (str) {
-  let h = crypto.createHash('md5')
+  let h = new MD5()
   h.update(str)
   return h.digest('hex')
 }

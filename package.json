@@ -1,5 +1,5 @@
 {
-  "name": "trakt.tv-cached",
+  "name": "react-native-trakt.tv-cached",
   "version": "2.0.1",
   "description": "Caching plugin for trakt.tv",
   "main": "./index.js",
@@ -13,7 +13,8 @@
     "plugin"
   ],
   "dependencies": {
-    "keyv-shrink": "^2.0.1",
+    "keyv-shrink": "^2.0.3",
+    "md5.js": "^1.3.4",
     "ramda": "^0.24.1"
   },
   "devDependencies": {
