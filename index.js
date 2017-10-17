@@ -1,6 +1,6 @@
 const R = require('ramda')
 const MD5 = require('md5.js')
-const Keyv = require('keyv-shrink')
+const Keyv = require('react-native-keyv-shrink')
 
 const enqueueField = 'system:enqueue'
 const ttlField = 'system:ttl'
