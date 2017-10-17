@@ -1,5 +1,5 @@
 const R = require('ramda')
-const MD5 = require('md5.js')
+const md5 = require('blueimp-md5')
 const Keyv = require('react-native-keyv-shrink')
 
 const enqueueField = 'system:enqueue'
@@ -48,9 +48,7 @@ function stringify (obj) {
 }
 
 function hash (str) {
-  let h = new MD5()
-  h.update(str)
-  return h.digest('hex')
+  return md5(str)
 }
 
 async function remember (ttl, key, fn) {
